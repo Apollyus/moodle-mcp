@@ -8,6 +8,7 @@ from . import auth
 from . import enrolment
 from . import downloads
 from . import moodle
+from . import reader
 from .logger import logger
 from .utils import getenv
 
@@ -53,6 +54,31 @@ def download_course_file(courseid: int, moduleid: int, filename: str | None = No
     Maximum download size is 250 MiB. External links are not downloaded.
     """
     return downloads.download_course_file(courseid, moduleid, filename, output_dir, filepath)
+
+
+@mcp.tool(annotations=ToolAnnotations(read_only_hint=True, open_world_hint=True))
+def read_course_file(courseid: int, moduleid: int, filename: str | None = None,
+                     filepath: str | None = None, page: int = 0,
+                     max_chars: int = 20000) -> reader.FileText:
+    """Read the text of a course file (PDF, DOCX, PPTX, XLSX, HTML, plain text/code).
+
+    Use list_course_files to find moduleid and filename. The file is downloaded once
+    into a local cache and its text is returned in pages of max_chars characters
+    (1000-100000); when has_more is true, call again with page+1. PDF text carries
+    "--- Page N ---" markers, slides "--- Slide N ---". Scanned PDFs have no text.
+    """
+    return reader.read_course_file(courseid, moduleid, filename, filepath, page, max_chars)
+
+
+@mcp.tool(annotations=ToolAnnotations(read_only_hint=True, open_world_hint=True))
+def search_course_files(courseid: int, query: str, max_results: int = 20) -> reader.SearchResult:
+    """Search inside the text of all readable files of a course (accent- and case-insensitive).
+
+    Returns snippets with file, module, section and page/slide location. Files are
+    downloaded into the local cache on first use, so the first search of a large course
+    can take a while. Use read_course_file to read a matching file in full.
+    """
+    return reader.search_course_files(courseid, query, max_results)
 
 
 @mcp.tool(annotations=ToolAnnotations(read_only_hint=True, open_world_hint=True))

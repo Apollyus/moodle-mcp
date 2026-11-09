@@ -98,6 +98,18 @@ Restart Claude after changing the config or updating the server, so it picks up 
 2. Run `uv sync` to install the dependencies, including the MCP CLI tools
 3. Run `uv run mcp install main.py -f .env` to add the moodle-mcp server to the Claude app
 
+## Reading course documents
+
+- `read_course_file(courseid, moduleid, filename?, page?, max_chars?)` returns the text of a PDF, DOCX, PPTX, XLSX,
+  HTML or plain-text/code file in pages (`has_more` tells you to ask for `page + 1`). PDF pages and slides carry
+  `--- Page N ---` / `--- Slide N ---` markers.
+- `search_course_files(courseid, query)` searches inside all readable files of a course (case- and accent-insensitive)
+  and returns snippets with page/slide locations.
+
+Files are downloaded once into `~/.cache/moodle-mcp` (override with `MOODLE_MCP_CACHE_DIR`); the extracted text is cached
+next to them, so repeated searches are fast. Limits: 50 MiB per file, scanned PDFs (no OCR) and old binary
+`.doc`/`.ppt`/`.xls` are reported as unreadable.
+
 ## Authentication
 
 ### SSO login (recommended, e.g. Moodle VŠE)
