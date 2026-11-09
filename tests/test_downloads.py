@@ -17,9 +17,9 @@ class DownloadTests(unittest.TestCase):
                      "filename": "slides.pdf", "filepath": "/", "filesize": 9,
                      "mimetype": "application/pdf"}
         self.url = "https://moodle.example/webservice/pluginfile.php/42/slides.pdf?forcedownload=1"
-        for name, value in [("MOODLE_URL", "https://moodle.example/webservice/rest/server.php"),
-                            ("MOODLE_TOKEN", "private-token")]:
-            patcher = patch.object(downloads, name, value)
+        for name, value in [("get_moodle_url", "https://moodle.example/webservice/rest/server.php"),
+                            ("get_moodle_token", "private-token")]:
+            patcher = patch.object(downloads, name, return_value=value)
             patcher.start()
             self.addCleanup(patcher.stop)
         self.files = patch.object(downloads, "_files", return_value=iter([]))

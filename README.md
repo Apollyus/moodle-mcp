@@ -100,7 +100,24 @@ Restart Claude after changing the config or updating the server, so it picks up 
 
 ## Authentication
 
-### Getting your Moodle token
+### SSO login (recommended, e.g. Moodle VŠE)
+
+Schools with SSO (Microsoft/OIDC) have no password for `login/token.php`. The login is a port of the
+[Moodle VSE IntelliJ plugin](https://github.com/Michus001/vse-moodle-idea-plugin): it opens a browser,
+you sign in with your school account and the token is captured from the `moodlemobile://token=...` redirect.
+
+```bash
+uv sync --extra login
+uv run moodle-mcp-login --site https://moodle.vse.cz   # writes MOODLE_TOKEN to .env
+```
+
+Your installed Google Chrome (or Edge) is used; fall back to `python -m playwright install chromium`.
+The MCP server also exposes a `login` tool, so the assistant can start the login itself when the token expires.
+The token is as good as a password: `.env` is git-ignored and written with mode 600.
+
+### Manual token
+
+#### Getting your Moodle token
 
 1. Navigate to your Moodle token management page `https://{your-moodle-url}/user/managetoken.php`
 2. Use the token with `Moodle mobile web service` in the `Service` column
