@@ -8,6 +8,7 @@ from . import auth
 from . import enrolment
 from . import downloads
 from . import moodle
+from . import reader
 from .logger import logger
 from .utils import getenv
 
@@ -16,7 +17,12 @@ mcp = MCPServer("moodle-mcp", dependencies=["glom", "requests"])
 
 @mcp.tool(annotations=ToolAnnotations(read_only_hint=True, open_world_hint=True))
 def list_course_files(courseid: int) -> list[downloads.CourseFile]:
-    """List downloadable course files with module IDs, names, paths and sizes, without tokens."""
+    """List downloadable course files with module IDs, names, paths and sizes, without tokens.
+
+    Includes course resources and folders, page/book files, assignment task attachments,
+    forum post attachments, H5P packages and files embedded in descriptions (a negative
+    moduleid means a file embedded in a section summary).
+    """
     return downloads.list_course_files(courseid)
 
 
@@ -53,6 +59,45 @@ def download_course_file(courseid: int, moduleid: int, filename: str | None = No
     Maximum download size is 250 MiB. External links are not downloaded.
     """
     return downloads.download_course_file(courseid, moduleid, filename, output_dir, filepath)
+
+
+@mcp.tool(annotations=ToolAnnotations(read_only_hint=True, open_world_hint=True))
+def get_course_text(courseid: int) -> list[dict]:
+    """Plain text of section summaries and module descriptions (labels, task descriptions,
+    page intros) of a course, with section/module names. This is content that is not a file."""
+    return downloads.get_course_texts(courseid)
+
+
+@mcp.tool(annotations=ToolAnnotations(read_only_hint=True, open_world_hint=True))
+def list_course_links(courseid: int) -> list[dict]:
+    """List external links of a course: URL modules and links inside descriptions,
+    with section, module, title and target URL."""
+    return downloads.list_course_links(courseid)
+
+
+@mcp.tool(annotations=ToolAnnotations(read_only_hint=True, open_world_hint=True))
+def read_course_file(courseid: int, moduleid: int, filename: str | None = None,
+                     filepath: str | None = None, page: int = 0,
+                     max_chars: int = 20000) -> reader.FileText:
+    """Read the text of a course file (PDF, DOCX, PPTX, XLSX, HTML, plain text/code).
+
+    Use list_course_files to find moduleid and filename. The file is downloaded once
+    into a local cache and its text is returned in pages of max_chars characters
+    (1000-100000); when has_more is true, call again with page+1. PDF text carries
+    "--- Page N ---" markers, slides "--- Slide N ---". Scanned PDFs have no text.
+    """
+    return reader.read_course_file(courseid, moduleid, filename, filepath, page, max_chars)
+
+
+@mcp.tool(annotations=ToolAnnotations(read_only_hint=True, open_world_hint=True))
+def search_course_files(courseid: int, query: str, max_results: int = 20) -> reader.SearchResult:
+    """Search inside the text of all readable files of a course (accent- and case-insensitive).
+
+    Returns snippets with file, module, section and page/slide location. Files are
+    downloaded into the local cache on first use, so the first search of a large course
+    can take a while. Use read_course_file to read a matching file in full.
+    """
+    return reader.search_course_files(courseid, query, max_results)
 
 
 @mcp.tool(annotations=ToolAnnotations(read_only_hint=True, open_world_hint=True))

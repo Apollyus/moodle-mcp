@@ -89,7 +89,8 @@ class DownloadTests(unittest.TestCase):
         sections = [{"name": "Week 1", "modules": [{"id": 7, "name": "Slides",
                     "contents": [{"type": "file", "filename": "slides.pdf",
                                   "fileurl": self.url, "filesize": 9}]}]}]
-        with patch.object(downloads, "get_moodle_api_data", return_value=sections):
+        with patch.object(downloads, "get_moodle_api_data", return_value=sections), \
+                patch.object(downloads.extra_files, "get_moodle_api_data", return_value=None):
             result = downloads.list_course_files(42)
         self.assertEqual(result[0]["moduleid"], 7)
         self.assertNotIn("fileurl", result[0])
