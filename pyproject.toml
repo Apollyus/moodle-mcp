@@ -11,8 +11,12 @@ dependencies = [
     "requests>=2.32.3",
 ]
 
+[project.optional-dependencies]
+login = ["playwright>=1.40"]
+
 [project.scripts]
 moodle-mcp = "moodle_mcp.server:main"
+moodle-mcp-login = "moodle_mcp.server:login_main"
 
 [project.urls]
 Homepage = "https://github.com/loyaniu/moodle-mcp"

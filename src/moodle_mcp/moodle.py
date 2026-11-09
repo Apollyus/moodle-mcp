@@ -6,8 +6,23 @@ from glom import delete
 from .logger import logger
 from .utils import getenv
 
-MOODLE_URL = getenv("MOODLE_URL")
-MOODLE_TOKEN = getenv("MOODLE_TOKEN")
+# Credentials are resolved lazily so a token obtained by the SSO login (see auth.py)
+# is picked up without restarting the server.
+_token_override: str | None = None
+_url_override: str | None = None
+
+
+def get_moodle_url() -> str | None:
+    return _url_override or getenv("MOODLE_URL")
+
+
+def get_moodle_token() -> str | None:
+    return _token_override or getenv("MOODLE_TOKEN")
+
+
+def set_credentials(url: str, token: str) -> None:
+    global _url_override, _token_override
+    _url_override, _token_override = url, token
 
 
 class MoodleAPIError(Exception):
@@ -96,7 +111,7 @@ def get_moodle_api_data(
     function: APIFunction, params: dict = None, use_original_data=True
 ):
     request_params = {
-        "wstoken": MOODLE_TOKEN,
+        "wstoken": get_moodle_token(),
         "wsfunction": function.value,
         "moodlewsrestformat": "json",
     }
@@ -110,9 +125,9 @@ def get_moodle_api_data(
 
     try:
         if function == APIFunction.enrol_self_enrol_user:
-            rsp = requests.post(MOODLE_URL, data=request_params, timeout=30)
+            rsp = requests.post(get_moodle_url(), data=request_params, timeout=30)
         else:
-            rsp = requests.get(MOODLE_URL, params=request_params, timeout=30)
+            rsp = requests.get(get_moodle_url(), params=request_params, timeout=30)
     except requests.RequestException as e:
         # Requests exceptions can contain the URL, token and enrolment key.
         logger.error(f"Network error calling {function.value}: {type(e).__name__}")
@@ -136,6 +151,8 @@ def get_moodle_api_data(
         error_msg = data.get("message", "Unknown Moodle API error")
         error_code = data.get("errorcode", "unknown")
         logger.error(f"Moodle API error: [{error_code}] {error_msg}")
+        if error_code in ("invalidtoken", "accessexception"):
+            error_msg += " Token je neplatný nebo vypršel: zavolej nástroj `login` (nebo spusť `python login.py`)."
         raise MoodleAPIError(error_code, error_msg, function.value)
 
     if use_original_data:

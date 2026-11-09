@@ -1,10 +1,15 @@
 from mcp.server.mcpserver import MCPServer
 from mcp.types import ToolAnnotations
 
+from pathlib import Path
+
 from . import api
+from . import auth
 from . import enrolment
 from . import downloads
+from . import moodle
 from .logger import logger
+from .utils import getenv
 
 mcp = MCPServer("moodle-mcp", dependencies=["glom", "requests"])
 
@@ -84,6 +89,25 @@ def self_enrol_course(courseid: int, password: str = "",
     get_my_courses before retrying because enrolment may already have succeeded.
     """
     return enrolment.self_enrol_course(courseid, password, instanceid)
+
+
+@mcp.tool()
+def login() -> dict:
+    """Log in to Moodle through school SSO. Opens a browser window where the user signs in
+    (takes up to 5 minutes); the new token is used immediately and saved to .env.
+    Call this when other tools fail with an invalid or missing token."""
+    site = auth.site_from_rest_url(moodle.get_moodle_url() or getenv("MOODLE_SITE") or "https://moodle.vse.cz")
+    token, info = auth.sso_login(site)
+    moodle.set_credentials(auth.rest_url(site), token.token)
+    env_path = Path(".env")
+    auth.write_env(env_path, site, token.token)
+    logger.info(f"Logged in as {info.get('username')}")
+    return {
+        "fullname": info.get("fullname"),
+        "username": info.get("username"),
+        "site": site,
+        "token_saved_to": str(env_path.resolve()),
+    }
 
 
 @mcp.tool()
@@ -233,3 +257,23 @@ def create_implementation_plan(assignid: int) -> api.ImplementationPlan:
 def main():
     logger.info("Starting moodle-mcp server")
     mcp.run()
+
+
+def login_main():
+    """CLI: ``moodle-mcp-login [--site URL] [--env .env] [--channel chrome]``."""
+    import argparse
+    import sys
+
+    ap = argparse.ArgumentParser(description="Get a Moodle mobile token through school SSO.")
+    ap.add_argument("--site", default="https://moodle.vse.cz")
+    ap.add_argument("--env", type=Path, default=Path(".env"), help="where to write MOODLE_TOKEN (default: ./.env)")
+    ap.add_argument("--channel", help="installed browser to use: chrome or msedge (default: auto)")
+    args = ap.parse_args()
+    try:
+        token, info = auth.sso_login(args.site, args.channel)
+    except Exception as e:  # noqa: BLE001 - CLI boundary
+        print(f"Chyba: {e}", file=sys.stderr)
+        raise SystemExit(1)
+    auth.write_env(args.env, args.site, token.token)
+    print(f"Přihlášen jako: {info.get('fullname')} ({info.get('username')})")
+    print(f"Token zapsán do {args.env}")

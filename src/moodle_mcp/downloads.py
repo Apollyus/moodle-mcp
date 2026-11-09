@@ -12,7 +12,7 @@ from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 import requests
 from typing_extensions import TypedDict
 
-from .moodle import APIFunction, MOODLE_TOKEN, MOODLE_URL, get_moodle_api_data
+from .moodle import APIFunction, get_moodle_api_data, get_moodle_token, get_moodle_url
 from .utils import getenv
 
 DOWNLOAD_DIR_ENV = "MOODLE_MCP_DOWNLOAD_DIR"
@@ -69,7 +69,7 @@ def list_course_files(courseid: int) -> list[CourseFile]:
 
 
 def _authenticated_url(fileurl: str) -> str:
-    base, target = urlsplit(MOODLE_URL), urlsplit(fileurl)
+    base, target = urlsplit(get_moodle_url()), urlsplit(fileurl)
     prefix = base.path.split("/webservice/", 1)[0]
     endpoint = prefix + "/webservice/pluginfile.php"
     if (target.scheme, target.netloc) != (base.scheme, base.netloc) or not (
@@ -78,7 +78,7 @@ def _authenticated_url(fileurl: str) -> str:
         raise ValueError("Only this Moodle site's webservice/pluginfile.php files are supported")
     query = [(k, v) for k, v in parse_qsl(target.query, keep_blank_values=True)
              if k.lower() not in {"token", "wstoken"}]
-    query.append(("token", MOODLE_TOKEN))
+    query.append(("token", get_moodle_token()))
     return urlunsplit((target.scheme, target.netloc, target.path, urlencode(query), ""))
 
 
