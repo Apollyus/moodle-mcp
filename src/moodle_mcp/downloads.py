@@ -12,6 +12,7 @@ from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 import requests
 from typing_extensions import TypedDict
 
+from . import extra_files
 from .moodle import APIFunction, get_moodle_api_data, get_moodle_token, get_moodle_url
 from .utils import getenv
 
@@ -47,21 +48,44 @@ class DownloadResult(TypedDict):
     mimetype: str
 
 
-def _files(courseid: int):
+def _sections(courseid: int) -> list[dict]:
     if courseid <= 0:
         raise ValueError("courseid must be positive")
-    sections = get_moodle_api_data(APIFunction.core_course_get_contents,
-                                  params={"courseid": courseid})
+    return get_moodle_api_data(APIFunction.core_course_get_contents,
+                               params={"courseid": courseid})
+
+
+def _files(courseid: int):
+    """Yield ``(metadata, fileurl)`` for every downloadable file of a course.
+
+    Besides the files listed in the course contents this includes assignment and forum
+    attachments, H5P packages and files embedded in section/module descriptions (see
+    :mod:`extra_files`). Embedded files of a section have a negative ``moduleid``.
+    """
+    sections = _sections(courseid)
+    seen: set[str] = set()
     for section in sections:
         for module in section.get("modules", []):
             for item in module.get("contents") or []:
                 if item.get("type") == "file" and item.get("fileurl"):
+                    seen.add(item["fileurl"].split("?")[0])
                     yield ({"moduleid": module["id"], "module": module["name"],
                             "section": section["name"], "filename": item["filename"],
                             "filepath": item.get("filepath", "/"),
                             "filesize": item.get("filesize", 0),
                             "timemodified": item.get("timemodified", 0),
                             "mimetype": item.get("mimetype", "")}, item["fileurl"])
+    yield from extra_files.extra_files(courseid, sections, seen)
+
+
+def get_course_texts(courseid: int) -> list[dict]:
+    """Plain text of section summaries and module descriptions of a course."""
+    return extra_files.course_texts(_sections(courseid))
+
+
+def list_course_links(courseid: int) -> list[dict]:
+    """External links (URL modules and links inside descriptions) of a course."""
+    return extra_files.course_links(_sections(courseid))
 
 
 def list_course_files(courseid: int) -> list[CourseFile]:

@@ -110,6 +110,22 @@ Files are downloaded once into `~/.cache/moodle-mcp` (override with `MOODLE_MCP_
 next to them, so repeated searches are fast. Limits: 50 MiB per file, scanned PDFs (no OCR) and old binary
 `.doc`/`.ppt`/`.xls` are reported as unreadable.
 
+### What counts as a course file
+
+`list_course_files`, `download_course_file(s)`, `read_course_file` and `search_course_files` see, besides
+resources, folders and page/book files:
+
+- assignment task attachments,
+- forum post attachments (first 100 discussions per course),
+- H5P packages,
+- files embedded in section summaries and module descriptions (a negative `moduleid` is a section summary).
+
+Sources the token cannot access are skipped silently. Not files, but available as text:
+`get_course_text(courseid)` returns section summaries and module descriptions (labels, task descriptions) and
+`list_course_links(courseid)` lists external links (URL modules and links in descriptions).
+`search_course_files` also searches these descriptions. Not supported: quizzes, VPL task descriptions
+(no web service), video streams and LTI tools.
+
 ## Authentication
 
 ### SSO login (recommended, e.g. Moodle VŠE)

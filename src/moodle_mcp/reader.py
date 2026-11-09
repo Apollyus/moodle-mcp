@@ -411,9 +411,18 @@ def _locate(text: str, position: int) -> str:
     return marker.group(1) if marker else ""
 
 
+def _course_texts(courseid: int) -> list[dict]:
+    try:
+        return downloads.get_course_texts(courseid)
+    except Exception as exc:  # noqa: BLE001 - text search is a bonus, files are the main source
+        logger.info(f"Course texts unavailable: {type(exc).__name__}")
+        return []
+
+
 def search_course_files(courseid: int, query: str, max_results: int = 20,
                         context_chars: int = 120, max_files: int = 100) -> SearchResult:
-    """Search the text of all readable files in a course (accent- and case-insensitive)."""
+    """Search the text of all readable files in a course, plus section/module descriptions
+    (accent- and case-insensitive)."""
     query = query.strip()
     if len(query) < 2:
         raise ValueError("query must have at least 2 characters")
@@ -452,6 +461,24 @@ def search_course_files(courseid: int, query: str, max_results: int = 20,
             result["hits"].append({
                 "moduleid": meta["moduleid"], "module": meta["module"], "section": meta["section"],
                 "filename": meta["filename"], "location": _locate(text, index),
+                "snippet": ("…" if lo else "") + " ".join(text[lo:hi].split()) + ("…" if hi < len(text) else ""),
+            })
+            start = index + len(needle_used)
+    for entry in _course_texts(courseid):
+        text, folded = entry["text"], _fold(entry["text"])
+        if len(folded) != len(text):
+            folded, needle_used = text.casefold(), query.casefold()
+        else:
+            needle_used = needle
+        start = 0
+        while (index := folded.find(needle_used, start)) != -1:
+            if len(result["hits"]) >= max_results:
+                result["truncated"] = True
+                return result
+            lo, hi = max(0, index - context_chars), min(len(text), index + len(needle_used) + context_chars)
+            result["hits"].append({
+                "moduleid": entry["moduleid"], "module": entry["module"], "section": entry["section"],
+                "filename": "(description)", "location": "Section text" if entry["modname"] == "section" else "Module text",
                 "snippet": ("…" if lo else "") + " ".join(text[lo:hi].split()) + ("…" if hi < len(text) else ""),
             })
             start = index + len(needle_used)

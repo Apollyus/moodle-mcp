@@ -55,6 +55,10 @@ class APIFunction(Enum):
     core_course_get_updates_since = "core_course_get_updates_since"
     mod_forum_get_forums_by_courses = "mod_forum_get_forums_by_courses"
     mod_forum_get_forum_discussions = "mod_forum_get_forum_discussions"
+    mod_forum_get_discussion_posts = "mod_forum_get_discussion_posts"
+    mod_h5pactivity_get_h5pactivities_by_courses = (
+        "mod_h5pactivity_get_h5pactivities_by_courses"
+    )
     core_completion_get_course_completion_status = (
         "core_completion_get_course_completion_status"
     )

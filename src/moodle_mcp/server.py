@@ -17,7 +17,12 @@ mcp = MCPServer("moodle-mcp", dependencies=["glom", "requests"])
 
 @mcp.tool(annotations=ToolAnnotations(read_only_hint=True, open_world_hint=True))
 def list_course_files(courseid: int) -> list[downloads.CourseFile]:
-    """List downloadable course files with module IDs, names, paths and sizes, without tokens."""
+    """List downloadable course files with module IDs, names, paths and sizes, without tokens.
+
+    Includes course resources and folders, page/book files, assignment task attachments,
+    forum post attachments, H5P packages and files embedded in descriptions (a negative
+    moduleid means a file embedded in a section summary).
+    """
     return downloads.list_course_files(courseid)
 
 
@@ -54,6 +59,20 @@ def download_course_file(courseid: int, moduleid: int, filename: str | None = No
     Maximum download size is 250 MiB. External links are not downloaded.
     """
     return downloads.download_course_file(courseid, moduleid, filename, output_dir, filepath)
+
+
+@mcp.tool(annotations=ToolAnnotations(read_only_hint=True, open_world_hint=True))
+def get_course_text(courseid: int) -> list[dict]:
+    """Plain text of section summaries and module descriptions (labels, task descriptions,
+    page intros) of a course, with section/module names. This is content that is not a file."""
+    return downloads.get_course_texts(courseid)
+
+
+@mcp.tool(annotations=ToolAnnotations(read_only_hint=True, open_world_hint=True))
+def list_course_links(courseid: int) -> list[dict]:
+    """List external links of a course: URL modules and links inside descriptions,
+    with section, module, title and target URL."""
+    return downloads.list_course_links(courseid)
 
 
 @mcp.tool(annotations=ToolAnnotations(read_only_hint=True, open_world_hint=True))
